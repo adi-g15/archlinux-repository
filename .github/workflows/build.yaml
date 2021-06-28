@@ -27,6 +27,10 @@ jobs:
         package:
           - yay-bin # [!] You should not remove this. This workflow uses self-built yay to build other packages.
           # Add packages you want HERE
+          - google-cloud-sdk
+          - heroku-cli-bin
+          - polybar
+          - vlc-git
           # - zoom
           # - google-chrome
     steps:

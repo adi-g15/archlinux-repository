@@ -30,7 +30,6 @@ jobs:
           - google-cloud-sdk
           - heroku-cli-bin
           - polybar
-          - vlc-git
           # - zoom
           # - google-chrome
     steps:

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 ARCH=$(uname -m)
+MAKEFLAGS="-j$(nproc)"
 
 : ${BUILD_USER:="builder"}
 
@@ -43,18 +44,28 @@ setup_yay() {
 	if ( pacman -Sy --noconfirm --needed --config <(printf "[${GITHUB_REPO_OWNER}]\nSigLevel = Optional\nServer = https://${GITHUB_REPO_OWNER}.github.io/${GITHUB_REPO_NAME}/${ARCH}/") yay ); then
 		:
 	else
-		sudo -u ${BUILD_USER} git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin
+		sudo -u ${BUILD_USER} git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin --depth=1
 		cd /tmp/yay-bin
 		sudo -u ${BUILD_USER} makepkg --noconfirm --syncdeps --install
 	fi
 }
 
 package() {
+	export MAKEFLAGS="-j$(nproc)"	# use all cores
+
+	echo "Using $MAKEFLAGS cores to build..."
+	# build fix for vlc-git
+	if [ "$@" = "vlc-git" ]; then
+		pacman -Sy cmake ninja meson libepoxy libplacebo --noconfirm --needed
+		# Piping 'y' to automatically yes to package conflicts "didn't" work
+		pacman -R libplacebo --noconfirm
+		sudo -u ${BUILD_USER} yay -Sy --noconfirm --needed vulkan-icd-loader glslang lcms2 shaderc libplacebo-git libglvnd
+	fi
+
 	sudo -u ${BUILD_USER} mkdir -p "${BUILD_DIR}" "${PKGS_DIR}"
 	sudo -u ${BUILD_USER} yay -Sy --noconfirm --nopgpfetch --mflags "--skippgpcheck" --builddir "${BUILD_DIR}" "$@"
- 	# Move package to PKGS_DIR
-	find "${BUILD_DIR}" -name "*.pkg.tar.zst"
-	cp -rv "${BUILD_DIR}/$@/"*.pkg.tar.zst "${PKGS_DIR}/"
+	# Move package to PKGS_DIR
+	find "${BUILD_DIR}" -name "*.pkg.tar.zst" -exec cp {} ${PKGS_DIR}/ \;
 }
 
 repository() {
@@ -65,7 +76,8 @@ repository() {
 	render_template templates/_config.yml > "${REPO_DIR}/_config.yml"
 
 	cd ${REPO_DIR}/${ARCH}
-	find ${PKGS_DIR} -name *.pkg.tar.zst -exec cp -f {} . \;
+	#cp ${PKGS_DIR}/*.pkg.tar.zst .	# Nothing found
+	find "${PKGS_DIR}" -name '*.pkg.tar.zst' -exec cp -vf '{}' . ';'
 	repo-add "${GITHUB_REPO_OWNER}.db.tar.gz" *.pkg.tar.zst
 	rename '.tar.gz' '' *.tar.gz	# repo-add originally creates links, this basically replaces them with the actual db archives
 }
@@ -91,8 +103,8 @@ commit() {
 	git init
 	git checkout --orphan "${GIT_BRANCH}"
 	git add --all
-	git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-	git config user.name "${GITHUB_ACTOR}"
+	git config user.email "bot.noreply@github.com"
+	git config user.name "Github Bot"
 
 	if [ -z "${GIT_COMMIT_SHA}" ]; then
 		git commit -m "built at $(date +'%Y/%m/%d %H:%M:%S')"

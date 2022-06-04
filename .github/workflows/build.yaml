@@ -1,14 +1,16 @@
 name: release
 
+# Take a look at https://aur.chaotic.cx/, I am commenting some packages that are already present there
+
 on:
   push:
     branches:
       - master
   schedule:
-    - cron: 0 4 * * * # Change HERE to set build schedule
+    - cron: 0 6 * * * # Run 11:30 PM Indian Standard Time
 
 env:
-  COUNTRY: United States # [!] Do not change. This env is used to find fast mirror server. (Github Actions' workers are running in US.)
+  COUNTRY: United States # Github actions hosted in US servers
   REPO_DIR: /tmp/repo
   BUILD_DIR: /tmp/build
   PKGS_DIR: /tmp/_packages_
@@ -27,12 +29,37 @@ jobs:
       matrix:
         package:
           - yay-bin # [!] You should not remove this. This workflow uses self-built yay to build other packages.
-          # Add packages you want HERE
-          - google-cloud-sdk
-          - heroku-cli-bin
+          #- anydesk-bin    # present in chaotic-aur
+          #- ddgr-git
+          #- devdocs-desktop
+          #- elementary-planner-git
+          #- elementary-sherlock
+          #- freedownloadmanager    # present in chaotic-aur
+          #- arm-linux-gnueabihf-gcc
+          #- gnome-terminal-transparency
+          #- google-cloud-sdk    # present in chaotic-aur
+          #- heroku-cli-bin    # present in chaotic-aur
+          - neovim-coc-bin
+          - neovim-coc-clangd-git
+          - neovim-coc-rust-analyzer-git
+          - pdfrankenstein
           - polybar
-          # - zoom
-          # - google-chrome
+          #- python-conda
+          #- python-conda-package-handling
+          - rust-book-git
+          #- rustdesk-bin    # present in chaotic-aur
+          #- teams
+          #- telegram-tg-git
+          - ulauncher-revived-git
+          #- vlc-git    # present in chaotic-aur
+          #- vscodium-bin
+          #- vscodium-bin-features
+          #- vscodium-bin-marketplace
+          #- wine-stable
+          #- wine-no-pe
+          #- wine-mono
+          - whatscli-git
+          #- youtube-music-bin    # present in chaotic-aur
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
@@ -43,6 +70,8 @@ jobs:
             ${{ env.CCACHE_DIR }}
       - run: |
           ./tasks.sh initialize
+      # Add multilib too, required for building wine
+      #- run: printf "[multilib]\nInclude = /etc/pacman.d/mirrorlist\n" >> /etc/pacman.conf
       - run: |
           ./tasks.sh package ${{ matrix.package }}
       - uses: actions/upload-artifact@v2
